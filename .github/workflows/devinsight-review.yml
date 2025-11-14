@@ -1,0 +1,58 @@
+name: DevInsight AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  run-devinsight-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          echo "Collecting changed files..."
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt
+          echo "DIFF<<EOF" >> $GITHUB_ENV
+          cat diff.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Build JSON payload
+        id: payload
+        run: |
+          echo "{
+            \"pr_title\": \"${{ github.event.pull_request.title }}\",
+            \"pr_number\": ${{ github.event.pull_request.number }},
+            \"repo_name\": \"${{ github.repository }}\",
+            \"diffs\": [
+              {
+                \"filename\": \"diff.patch\",
+                \"old_code\": \"\",
+                \"new_code\": \"$(echo "${{ env.DIFF }}" | sed 's/"/\\"/g')\"
+              }
+            ]
+          }" > payload.json
+
+      - name: Call DevInsight Backend
+        id: call_backend
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d @payload.json \
+            https://nongrevious-kazuko-unrelatively.ngrok-free.dev/review)
+          echo "$RESPONSE" > review_response.json
+          echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
+
+      - name: Post Review Comment to PR
+        run: |
+          COMMENTS=$(cat review_response.json | jq -r '.comments[] | "- **File:** \(.filename)  \n  **Line:** \(.line)  \n  **Severity:** \(.severity)  \n  **Message:** \(.message)"')
+          BODY="### 🤖 DevInsight AI Code Review\n$COMMENTS"
+          gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            -f body="$BODY"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
