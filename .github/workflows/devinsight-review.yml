@@ -11,20 +11,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        continue-on-error: true
 
       - name: Get PR diff
         id: diff
+        continue-on-error: true
         run: |
           echo "Collecting changed files..."
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          git diff FETCH_HEAD > diff.txt
-          echo "DIFF<<EOF" >> $GITHUB_ENV
-          cat diff.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          git fetch origin ${{ github.event.pull_request.base.ref }} || true
+          git diff FETCH_HEAD > diff.txt || echo "No diff found" > diff.txt
 
       - name: Build JSON payload
         id: payload
+        continue-on-error: true
         run: |
+          DIFF_CONTENT=$(sed 's/"/\\"/g' diff.txt)
           echo "{
             \"pr_title\": \"${{ github.event.pull_request.title }}\",
             \"pr_number\": ${{ github.event.pull_request.number }},
@@ -33,25 +34,30 @@ jobs:
               {
                 \"filename\": \"diff.patch\",
                 \"old_code\": \"\",
-                \"new_code\": \"$(echo \"${{ env.DIFF }}\" | sed 's/\"/\\\"/g')\"
+                \"new_code\": \"${DIFF_CONTENT}\"
               }
             ]
           }" > payload.json
 
       - name: Call DevInsight Backend
         id: call_backend
+        continue-on-error: true
         run: |
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d @payload.json \
-            https://nongrevious-kazuko-unrelatively.ngrok-free.dev/review)
+            https://nongrevious-kazuko-unrelatively.ngrok-free.dev/review || echo "")
           echo "$RESPONSE" > review_response.json
-          echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
 
       - name: Post Review Comment to PR
+        continue-on-error: true
         run: |
-          COMMENTS=$(cat review_response.json | jq -r '.comments[] | "- **File:** \(.filename)  \n  **Line:** \(.line)  \n  **Severity:** \(.severity)  \n  **Message:** \(.message)"')
-          BODY="### 🤖 DevInsight AI Code Review\n$COMMENTS"
+          if jq -e '.comments' review_response.json > /dev/null 2>&1; then
+            COMMENTS=$(jq -r '.comments[] | "- **File:** \(.filename)  \n  **Line:** \(.line)  \n  **Severity:** \(.severity)  \n  **Message:** \(.message)"' review_response.json)
+            BODY="### 🤖 DevInsight AI Code Review\n$COMMENTS"
+          else
+            BODY="### 🤖 DevInsight AI Code Review\n⚠️ Backend unreachable — no review generated."
+          fi
           gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
             -f body="$BODY"
         env:
