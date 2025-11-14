@@ -17,7 +17,7 @@ jobs:
         run: |
           echo "Collecting changed files..."
           git fetch origin ${{ github.event.pull_request.base.ref }}
-          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt
+          git diff FETCH_HEAD > diff.txt
           echo "DIFF<<EOF" >> $GITHUB_ENV
           cat diff.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -33,7 +33,7 @@ jobs:
               {
                 \"filename\": \"diff.patch\",
                 \"old_code\": \"\",
-                \"new_code\": \"$(echo "${{ env.DIFF }}" | sed 's/"/\\"/g')\"
+                \"new_code\": \"$(echo \"${{ env.DIFF }}\" | sed 's/\"/\\\"/g')\"
               }
             ]
           }" > payload.json
