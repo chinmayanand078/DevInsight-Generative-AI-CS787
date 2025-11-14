@@ -46,18 +46,26 @@ jobs:
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d @payload.json \
-            https://nongrevious-kazuko-unrelatively.ngrok-free.dev/review || echo "")
+            https://nongrievous-kazuko-unrelatively.ngrok-free.dev/review || echo "")
           echo "$RESPONSE" > review_response.json
 
       - name: Post Review Comment to PR
         continue-on-error: true
         run: |
-          if jq -e '.comments' review_response.json > /dev/null 2>&1; then
+          # Case 1: Backend returned review comments
+          if jq -e '.comments | length > 0' review_response.json > /dev/null 2>&1; then
             COMMENTS=$(jq -r '.comments[] | "- **File:** \(.filename)  \n  **Line:** \(.line)  \n  **Severity:** \(.severity)  \n  **Message:** \(.message)"' review_response.json)
             BODY="### 🤖 DevInsight AI Code Review\n$COMMENTS"
+
+          # Case 2: Backend reachable but no issues found
+          elif jq -e '.comments' review_response.json > /dev/null 2>&1; then
+            BODY="### 🤖 DevInsight AI Code Review\n✔ No issues found — great work!"
+
+          # Case 3: Backend unreachable / invalid response
           else
             BODY="### 🤖 DevInsight AI Code Review\n⚠️ Backend unreachable — no review generated."
           fi
+
           gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
             -f body="$BODY"
         env:
