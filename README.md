@@ -20,7 +20,7 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 - Claimed outcome metrics (e.g., “35% PR time reduction”, “30–40% coverage lift”) are not automatically measured or reported by the backend.
 - GitHub commenting is wired through `.github/workflows/devinsight.yml`; you must provide secrets (e.g., `OPENAI_API_KEY`, `EMBEDDING_MODEL` if you want semantic retrieval) for the workflow to post LLM-backed findings on pull requests.
 
-For a concise checklist of what still remains and how to close each gap, see [docs/REMAINING_GAPS.md](docs/REMAINING_GAPS.md).
+For a concise checklist of what still remains and how to close each gap, see [docs/REMAINING_GAPS.md](docs/REMAINING_GAPS.md). For the current state of automated checks, optional coverage runs, and what is **not** measured, see [docs/TESTING_STATUS.md](docs/TESTING_STATUS.md).
 
 ## 📁 Project structure (current repository)
 
