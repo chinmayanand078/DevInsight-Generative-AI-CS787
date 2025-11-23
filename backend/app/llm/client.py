@@ -1,5 +1,6 @@
 import httpx
 import numpy as np
+from sklearn.feature_extraction.text import HashingVectorizer
 from ..config import settings
 
 
@@ -10,6 +11,18 @@ class LLMClient:
     (RAG, FAISS, review comments, GitHub bot).
     Later we will replace mock logic with a real LLM API call.
     """
+
+    def __init__(self) -> None:
+        # HashingVectorizer is stateless and deterministic, so the same text always
+        # yields the same embedding without needing to fit on a corpus. This keeps
+        # FAISS searches repeatable while avoiding random noise.
+        self._vectorizer = HashingVectorizer(
+            n_features=768,
+            alternate_sign=False,
+            norm="l2",
+            lowercase=True,
+            stop_words="english",
+        )
 
     async def generate_review(self, prompt: str) -> str:
         """
@@ -25,8 +38,10 @@ class LLMClient:
     async def embed(self, texts: list[str]) -> np.ndarray:
         """
         Generate vector embeddings for RAG search.
-        For now: return random embeddings so FAISS index works.
-        Shape = (num_texts, 768)
+        Uses a deterministic HashingVectorizer so the same text always maps to the
+        same 768-dim vector, enabling reproducible FAISS searches without an
+        external embedding service.
         """
-        return np.random.randn(len(texts), 768).astype("float32")
+        sparse_vectors = self._vectorizer.transform(texts)
+        return sparse_vectors.toarray().astype("float32")
 

@@ -4,3 +4,4 @@ pydantic
 pydantic-settings
 httpx
 faiss-cpu
+scikit-learn
