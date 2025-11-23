@@ -25,21 +25,24 @@ pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
-All runtime packages (FastAPI, uvicorn, faiss-cpu, etc.) are declared in `backend/requirements.txt`. Installing from the repo root ensures relative paths resolve correctly.
+All runtime packages (FastAPI, uvicorn, faiss-cpu, sentence-transformers, etc.) are declared in `backend/requirements.txt`. Installing from the repo root ensures relative paths resolve correctly.
 
 ## 4) Set environment variables (optional for mock mode)
 
 Create a `.env` file in the repo root if you plan to swap in a real model later. The current code runs fully in mock mode, so none of these are strictly required.
 
 ```
+LLM_PROVIDER=openai            # or leave unset for mock
 LLM_API_KEY=<your-key-if-using-a-real-LLM>
-MODEL_NAME=llama-3-8b
+LLM_API_BASE=https://api.openai.com/v1  # optional override
+MODEL_NAME=gpt-4o-mini         # any chat/completions-capable model
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2  # optional semantic encoder
 FAISS_INDEX_PATH=backend/app/rag/index
 ```
 
 ## 5) Build (or rebuild) the FAISS index
 
-The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams (no external model required), so rebuilding is fast and repeatable.
+The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval.
 
 ```bash
 python -m backend.app.rag.index_builder
@@ -100,10 +103,10 @@ With the server running on port 8000:
            }'
   ```
 
-Responses come from deterministic heuristics (no external API keys required). If you pass `coverage_goal`, the service writes the code/tests to a temp dir and runs `pytest --cov`, returning the stdout/stderr summary alongside the generated test file.
+Responses come from deterministic heuristics (no external API keys required). If you pass `coverage_goal`, the service writes the code/tests to a temp dir and runs `pytest --cov`, returning the stdout/stderr summary alongside the generated test file. If `LLM_PROVIDER` is set to `openai` with a valid key, the review endpoint will also surface structured suggestions from the configured model.
 
 ## 8) Optional next steps
 
-- Swap `backend/app/llm/client.py` to call a real model for both `generate_review` and `embed`.
-- Tune `backend/app/llm/client.py` with a semantic encoder instead of hash vectors for stronger retrieval.
-- Wire `backend/app/integrations/github_client.py` into your CI to post review feedback directly on PRs.
+- Run an end-to-end PR comment via Actions by executing `python -m backend.app.integrations.github_workflow --repo $GITHUB_REPOSITORY --token $GITHUB_TOKEN --event-path $GITHUB_EVENT_PATH` in your workflow.
+- Fine-tune an LLM with `python training/finetune_llama3.py --dataset data.jsonl --model meta-llama/Meta-Llama-3-8B-Instruct` after installing `training/requirements.txt`.
+- Use a semantic encoder by setting `EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2` before rebuilding the FAISS index.

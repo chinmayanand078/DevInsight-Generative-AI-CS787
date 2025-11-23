@@ -1,21 +1,22 @@
 # 🚀 DevInsight AI — Automated Code Review & Documentation Intelligence
 
-DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipeline (code review + RAG-assisted context + unit-test suggestions). The current repository focuses on the backend skeleton described in the course project report and now ships with deterministic, locally runnable behaviors (no external keys required).
+DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipeline (code review + RAG-assisted context + unit-test suggestions). The current repository focuses on the backend skeleton described in the course project report and now ships with deterministic, locally runnable behaviors (no external keys required) **plus optional real-model integrations** if you provide credentials.
 
 ## 🎯 What works today
 
 - REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
-- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files).
-- Deterministic, heuristic code review (no LLM dependency) that flags bare `except`, stray `print`, missing docstrings, TODOs, and other quick wins.
+- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings (deterministic hashing by default, Sentence Transformers if configured).
+- Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set.
 - Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional one-shot pytest+coverage execution when you provide a `coverage_goal` in the request.
 - Metrics hooks that record basic timing/usage information in memory.
-- A minimal GitHub REST helper to post PR/commit comments when supplied with a token.
+- GitHub integration helpers: REST client plus an Actions-friendly runner (`backend/app/integrations/github_workflow.py`) that can post results back to a PR.
+- A training starter script (`training/finetune_llama3.py`) showing how to fine-tune Llama 3 style models on custom review/test data.
 
 ## ⚠️ Known gaps (compared to the project vision)
 
-- No real LLM calls: review and test generation are deterministic heuristics; swap in a proper encoder or model when available.
-- Embeddings are still deterministic HashingVectorizer outputs; swap in a semantic encoder if you need richer retrieval quality.
-- GitHub integration is provided as a helper module but not wired to a running bot; connect it to your workflow with a token to post comments automatically.
+- Default mode stays deterministic; LLM-backed review requires your own API key and model access.
+- Semantic retrieval requires downloading an encoder (Sentence Transformers); set `EMBEDDING_MODEL` to enable.
+- GitHub commenting is available via `backend.app.integrations.github_workflow` but still needs to be invoked from your CI workflow.
 
 ## 📁 Project structure (current repository)
 
@@ -32,6 +33,7 @@ DevInsight-Generative-AI-CS787/
 │  │  └─ static_analysis/ # Lightweight static analyzer
 │  ├─ requirements.txt    # Backend dependencies
 │  └─ uvicorn_run.sh      # Convenience script to launch the API
+├─ training/              # Optional fine-tuning scripts + requirements
 ├─ CS787_report.pdf       # Project write-up (alternate filename: CS787_Report_Final.pdf)
 └─ ...
 ```

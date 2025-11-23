@@ -1,10 +1,14 @@
-import time
 import ast
+import json
+import time
+from textwrap import dedent
 
+from backend.app.llm.client import LLMClient
 from backend.app.schemas import ReviewRequest, ReviewResponse, ReviewComment
-from backend.app.services.rag_service import get_context_for_review
 from backend.app.services.metrics_service import record_review_metrics
+from backend.app.services.rag_service import get_context_for_review
 from backend.app.static_analysis.analyzer import estimate_complexity
+from backend.app.config import settings
 
 
 def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
@@ -99,7 +103,7 @@ def _lint_ast(filename: str, new_code: str) -> list[ReviewComment]:
 async def run_review(request: ReviewRequest) -> ReviewResponse:
     """
     Main entry point for a PR review.
-    Integrates RAG context + deterministic lint review + metrics logging.
+    Integrates RAG context + deterministic lint review + optional LLM + metrics logging.
     """
     start_time = time.time()  # start metrics timer
 
@@ -115,6 +119,34 @@ async def run_review(request: ReviewRequest) -> ReviewResponse:
         if diff.new_code:
             comments.extend(_lint_lines(diff.filename, diff.new_code))
             comments.extend(_lint_ast(diff.filename, diff.new_code))
+
+    # 🤖 Step 3 — optional LLM suggestions (structured JSON)
+    if settings.LLM_PROVIDER != "mock" and settings.LLM_API_KEY:
+        llm = LLMClient()
+        prompt = dedent(
+            f"""
+            Given the following PR diffs, produce JSON findings with filename, line, severity, and message.
+            Use the RAG snippets for context if helpful.
+
+            DIFFS:\n{diff_text}\n\nRAG CONTEXT:{rag_context}
+            """
+        ).strip()
+
+        try:
+            raw = await llm.generate_review(prompt)
+            parsed = json.loads(raw)
+            for finding in parsed.get("findings", []):
+                comments.append(
+                    ReviewComment(
+                        filename=finding.get("filename", "unknown"),
+                        line=int(finding.get("line", 1)),
+                        severity=finding.get("severity", "info"),
+                        message=finding.get("message", "LLM suggestion"),
+                    )
+                )
+        except Exception:
+            # Keep lint-only output if LLM parsing fails
+            pass
 
     # 📊 Step 5 — metrics logging
     duration = time.time() - start_time

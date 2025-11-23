@@ -31,7 +31,7 @@ async def main():
     embeddings = await llm.embed(all_chunks)
 
     print("💾 Building FAISS vector index...")
-    store = VectorStore(dim=2048)
+    store = VectorStore()
     store.build_index(embeddings, metadatas)
     store.save(INDEX_DIR)
 

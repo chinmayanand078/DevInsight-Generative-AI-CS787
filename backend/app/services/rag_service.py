@@ -12,6 +12,10 @@ async def get_context_for_review(diff_text: str, k: int = 5):
     """
     llm = LLMClient()
     store = VectorStore()
+
+    if not (INDEX_DIR / "embeddings.faiss").exists():
+        return []
+
     store.load(INDEX_DIR)
 
     # Use the diff text directly as query
