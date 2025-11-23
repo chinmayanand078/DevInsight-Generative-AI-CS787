@@ -16,12 +16,15 @@ class LLMClient:
         # HashingVectorizer is stateless and deterministic, so the same text always
         # yields the same embedding without needing to fit on a corpus. This keeps
         # FAISS searches repeatable while avoiding random noise.
+        # Bigrams + a larger feature space give more meaningful locality than the
+        # initial unigram-only setup while staying stateless/deterministic.
         self._vectorizer = HashingVectorizer(
-            n_features=768,
+            n_features=2048,
             alternate_sign=False,
             norm="l2",
             lowercase=True,
             stop_words="english",
+            ngram_range=(1, 2),
         )
 
     async def generate_review(self, prompt: str) -> str:

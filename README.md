@@ -5,17 +5,17 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 ## 🎯 What works today
 
 - REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
-- RAG scaffolding that indexes repository Markdown/Python/text files into a FAISS store (skips binaries and oversized files).
+- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files).
 - Deterministic, heuristic code review (no LLM dependency) that flags bare `except`, stray `print`, missing docstrings, TODOs, and other quick wins.
-- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function.
+- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional one-shot pytest+coverage execution when you provide a `coverage_goal` in the request.
 - Metrics hooks that record basic timing/usage information in memory.
+- A minimal GitHub REST helper to post PR/commit comments when supplied with a token.
 
 ## ⚠️ Known gaps (compared to the project vision)
 
 - No real LLM calls: review and test generation are deterministic heuristics; swap in a proper encoder or model when available.
-- RAG indexing still skips Git history and large/binary artifacts; extend the loader if you need those sources.
-- GitHub integration does not yet post comments; however, a workflow (`.github/workflows/devinsight.yml`) now runs backend checks on pushes/PRs.
-- Coverage is not measured yet; generated tests are scaffolds and may need parameter tuning for your code.
+- Embeddings are still deterministic HashingVectorizer outputs; swap in a semantic encoder if you need richer retrieval quality.
+- GitHub integration is provided as a helper module but not wired to a running bot; connect it to your workflow with a token to post comments automatically.
 
 ## 📁 Project structure (current repository)
 

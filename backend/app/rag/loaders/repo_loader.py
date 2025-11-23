@@ -1,11 +1,13 @@
+import subprocess
 from pathlib import Path
+from typing import List, Tuple
 
 
 ALLOWED_EXTENSIONS = {".md", ".py", ".txt"}
 EXCLUDE_DIRS = {".git", "__pycache__", "node_modules", "backend/app/rag/index"}
 
 
-def load_repo_text(base_path: str = "."):
+def load_repo_text(base_path: str = ".") -> list[tuple[str, dict]]:
     """
     Read repository text content (Markdown + Python + text) into a list of
     (content, metadata) tuples. Traversal is bounded to small text files to avoid
@@ -40,4 +42,51 @@ def load_repo_text(base_path: str = "."):
         targets.append((text, {"source": rel_path}))
 
     return targets
+
+
+def load_git_history(base_path: str = ".", max_commits: int = 25) -> List[Tuple[str, dict]]:
+    """
+    Read recent Git history (subject + body + patch) to enrich RAG context with
+    change intent. Falls back gracefully if Git is unavailable.
+    """
+
+    repo_path = Path(base_path)
+    if not (repo_path / ".git").exists():
+        return []
+
+    cmd = [
+        "git",
+        "-C",
+        str(repo_path),
+        "log",
+        f"-{max_commits}",
+        "--stat",
+        "--patch",
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="ignore",
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+    log_text = result.stdout.strip()
+    if not log_text:
+        return []
+
+    return [
+        (
+            log_text,
+            {
+                "source": "git_history",
+                "description": f"Last {max_commits} commits (subject, body, patch)",
+            },
+        )
+    ]
 

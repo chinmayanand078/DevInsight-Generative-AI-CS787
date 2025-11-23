@@ -7,6 +7,10 @@ from backend.app.static_analysis.analyzer import (
     detect_edge_cases,
     estimate_complexity,
 )
+from backend.app.testing.coverage_runner import (
+    run_pytest_with_coverage,
+    summarize_coverage,
+)
 
 
 def _guess_value(arg_name: str) -> str:
@@ -81,9 +85,15 @@ async def generate_tests(request: TestGenRequest) -> TestGenResponse:
     test_file = f"tests/test_{Path(request.file_path).stem}.py"
     test_code = _build_test_file(module_path, analysis["signatures"], analysis["edge_cases"])
 
+    coverage_summary = None
+    if request.coverage_goal:
+        result = run_pytest_with_coverage(request.file_path, code, test_code)
+        coverage_summary = summarize_coverage(result)
+
     test_obj = GeneratedTest(
         file_path=test_file,
         test_code=test_code,
+        coverage_summary=coverage_summary,
     )
 
     return TestGenResponse(tests=[test_obj])

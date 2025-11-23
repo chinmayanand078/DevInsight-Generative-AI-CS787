@@ -5,3 +5,5 @@ pydantic-settings
 httpx
 faiss-cpu
 scikit-learn
+pytest
+pytest-cov

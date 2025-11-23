@@ -39,7 +39,7 @@ FAISS_INDEX_PATH=backend/app/rag/index
 
 ## 5) Build (or rebuild) the FAISS index
 
-The RAG pipeline indexes repository Markdown/Python/text files (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors (no external model required), so rebuilding is fast and repeatable.
+The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams (no external model required), so rebuilding is fast and repeatable.
 
 ```bash
 python -m backend.app.rag.index_builder
@@ -88,7 +88,7 @@ With the server running on port 8000:
            }'
   ```
 
-- Unit-test generation (deterministic scaffold output)
+- Unit-test generation (deterministic scaffold output + optional coverage run)
 
   ```bash
   curl -X POST http://localhost:8000/generate-tests \
@@ -100,11 +100,10 @@ With the server running on port 8000:
            }'
   ```
 
-Responses come from deterministic heuristics (no external API keys required).
+Responses come from deterministic heuristics (no external API keys required). If you pass `coverage_goal`, the service writes the code/tests to a temp dir and runs `pytest --cov`, returning the stdout/stderr summary alongside the generated test file.
 
 ## 8) Optional next steps
 
 - Swap `backend/app/llm/client.py` to call a real model for both `generate_review` and `embed`.
-- Extend `backend/app/rag/loaders/repo_loader.py` to ingest code files or Git history before rebuilding the index.
-- Add a GitHub Actions workflow (`.github/workflows/devinsight.yml`) that calls the `/review` endpoint on pull requests.
-- Implement real coverage measurement in the test generation service once a true LLM is wired in.
+- Tune `backend/app/llm/client.py` with a semantic encoder instead of hash vectors for stronger retrieval.
+- Wire `backend/app/integrations/github_client.py` into your CI to post review feedback directly on PRs.

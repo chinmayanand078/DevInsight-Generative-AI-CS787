@@ -39,6 +39,7 @@ class TestGenRequest(BaseModel):
 class GeneratedTest(BaseModel):
     file_path: str
     test_code: str
+    coverage_summary: Optional[str] = None
 
 
 class TestGenResponse(BaseModel):

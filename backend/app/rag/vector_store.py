@@ -9,7 +9,7 @@ class VectorStore:
     Wrapper over FAISS index + metadata.
     """
 
-    def __init__(self, dim: int = 768):
+    def __init__(self, dim: int = 2048):
         self.dim = dim
         self.index = faiss.IndexFlatL2(dim)
         self.metadatas = []
