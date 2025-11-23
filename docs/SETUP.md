@@ -146,6 +146,6 @@ Responses come from deterministic heuristics (no external API keys required). If
 
 ## 8) Optional next steps
 
-- Run an end-to-end PR comment via Actions by executing `python -m backend.app.integrations.github_workflow --repo $GITHUB_REPOSITORY --token $GITHUB_TOKEN --event-path $GITHUB_EVENT_PATH` in your workflow.
+- **Enable turnkey PR commenting.** The repo already contains `.github/workflows/devinsight.yml`. Leave it as-is to post deterministic review summaries on pull requests using the default `GITHUB_TOKEN` (permissions are declared in the workflow). If you want model-backed findings or semantic retrieval, add `OPENAI_API_KEY` and/or `EMBEDDING_MODEL` as repo secrets and let the workflow rerun to rebuild the FAISS index. The helper script fetches the PR base ref/sha and falls back to local history if the remote cannot be fetched (e.g., forked PRs).
 - Fine-tune an LLM with `python training/finetune_llama3.py --dataset data.jsonl --model meta-llama/Meta-Llama-3-8B-Instruct` after installing `training/requirements.txt`.
 - Use a semantic encoder by setting `EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2` before rebuilding the FAISS index.

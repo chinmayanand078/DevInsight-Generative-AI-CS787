@@ -9,14 +9,14 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 - Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set.
 - Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional one-shot pytest+coverage execution when you provide a `coverage_goal` in the request.
 - Metrics hooks that record basic timing/usage information in memory.
-- GitHub integration helpers: REST client plus an Actions-friendly runner (`backend/app/integrations/github_workflow.py`) that can post results back to a PR.
+- GitHub integration helpers: REST client plus an Actions-friendly runner (`backend/app/integrations/github_workflow.py`) that can post results back to a PR, with a ready-to-use workflow in `.github/workflows/devinsight.yml`.
 - A training starter script (`training/finetune_llama3.py`) showing how to fine-tune Llama 3 style models on custom review/test data.
 
 ## ⚠️ Known gaps (compared to the project vision)
 
 - Default mode stays deterministic; LLM-backed review requires your own API key and model access.
 - Semantic retrieval requires downloading an encoder (Sentence Transformers); set `EMBEDDING_MODEL`, rebuild the FAISS index, and the runtime will enforce that the query embedder matches the stored index embedder.
-- GitHub commenting is available via `backend.app.integrations.github_workflow` but still needs to be invoked from your CI workflow.
+- GitHub commenting is wired through `.github/workflows/devinsight.yml`; set your secrets (e.g., `OPENAI_API_KEY`, `EMBEDDING_MODEL` if you want semantic retrieval) and the workflow will post a summary comment on pull requests.
 
 ## 📁 Project structure (current repository)
 
@@ -43,6 +43,12 @@ DevInsight-Generative-AI-CS787/
 If you want exact commands and environment setup guidance, follow [docs/SETUP.md](docs/SETUP.md). It walks through creating a virtual environment, installing dependencies, building the FAISS index, running the API, and exercising each endpoint with sample `curl` payloads.
 
 To switch from deterministic mocks to real ChatGPT-powered findings, see the "Enabling real ChatGPT responses" section in [docs/SETUP.md](docs/SETUP.md) for the exact `.env` variables and restart steps.
+
+## 🔌 GitHub PR automation (turnkey)
+
+- The repo ships with `.github/workflows/devinsight.yml`, which runs compile checks on pushes/PRs and, on pull requests, builds the FAISS index, runs the review pipeline, and posts a summary comment back to the PR.
+- Deterministic mode works with the default `GITHUB_TOKEN`; to enable LLM-backed findings or semantic retrieval, add `OPENAI_API_KEY` and/or `EMBEDDING_MODEL` as repository secrets and rerun the workflow so the index is rebuilt with the chosen encoder.
+- `fetch-depth: 0` is already set so diffs can be computed against the base branch; the workflow helper also fetches the base ref/sha and falls back to local history if the remote is unavailable (e.g., some forked PRs).
 
 ## 🛣 Roadmap ideas
 

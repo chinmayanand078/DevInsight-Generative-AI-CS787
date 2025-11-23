@@ -42,8 +42,54 @@ def _read_event(path: Path) -> dict:
         return {}
 
 
-def _changed_files(base_ref: str | None) -> List[str]:
-    base = base_ref or "origin/master"
+def _has_ref(ref: str) -> bool:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", ref],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def _ensure_ref_available(ref: str) -> None:
+    try:
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "--depth", "200", "origin", ref],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        # Best-effort: continue even if fetch fails (e.g., forked PRs without access)
+        print(f"Warning: unable to fetch {ref}; continuing with local history")
+
+
+def _resolve_base_ref(base_ref: str | None, base_sha: str | None) -> str:
+    candidates: List[str] = []
+    if base_sha:
+        candidates.append(base_sha)
+    if base_ref:
+        candidates.extend([base_ref, f"origin/{base_ref}"])
+    candidates.append("origin/master")
+
+    for candidate in candidates:
+        if not _has_ref(candidate):
+            # Attempt to fetch the branch/sha before retrying
+            ref_to_fetch = candidate.removeprefix("origin/")
+            _ensure_ref_available(ref_to_fetch)
+        if _has_ref(candidate):
+            return candidate
+
+    # Fallback: diff against previous commit if nothing else is available
+    return "HEAD^"
+
+
+def _changed_files(base_ref: str | None, base_sha: str | None) -> List[str]:
+    base = _resolve_base_ref(base_ref, base_sha)
     cmd = ["git", "diff", "--name-only", f"{base}...HEAD"]
     try:
         result = subprocess.run(cmd, check=True, text=True, capture_output=True)
@@ -67,9 +113,11 @@ async def main(args: argparse.Namespace) -> None:
     pr_number = pr.get("number") or pr.get("id") or 0
     pr_title = pr.get("title") or "Auto DevInsight review"
 
-    base_ref = pr.get("base", {}).get("ref") or args.base_ref
+    base_info = pr.get("base", {})
+    base_ref = base_info.get("ref") or args.base_ref
+    base_sha = base_info.get("sha")
 
-    files = _changed_files(base_ref)
+    files = _changed_files(base_ref, base_sha)
     diffs: List[FileDiff] = []
 
     for filename in files:
