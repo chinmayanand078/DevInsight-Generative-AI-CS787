@@ -1,5 +1,5 @@
 from pathlib import Path
-from backend.app.rag.loaders.repo_loader import load_repo_text
+from backend.app.rag.loaders.repo_loader import load_git_history, load_repo_text
 from backend.app.rag.chunking import chunk_text
 from backend.app.llm.client import LLMClient
 from backend.app.rag.vector_store import VectorStore
@@ -10,7 +10,7 @@ INDEX_DIR = Path("backend/app/rag/index")
 
 async def main():
     print("🔍 Loading repository documentation...")
-    docs = load_repo_text(base_path=".")
+    docs = load_repo_text(base_path=".") + load_git_history(base_path=".")
 
     print(f"📄 Loaded {len(docs)} documents")
 
@@ -22,7 +22,8 @@ async def main():
         chunks = chunk_text(content)
         for chunk in chunks:
             all_chunks.append(chunk)
-            metadatas.append(meta)
+            enriched = {**meta, "chunk": chunk}
+            metadatas.append(enriched)
 
     print(f"🔢 Total chunks: {len(all_chunks)}")
 
@@ -31,8 +32,8 @@ async def main():
     embeddings = await llm.embed(all_chunks)
 
     print("💾 Building FAISS vector index...")
-    store = VectorStore(dim=768)
-    store.build_index(embeddings, metadatas)
+    store = VectorStore()
+    store.build_index(embeddings, metadatas, embedder=llm.embedder_id)
     store.save(INDEX_DIR)
 
     print(f"✅ Index saved to: {INDEX_DIR}")

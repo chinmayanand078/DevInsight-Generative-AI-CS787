@@ -9,7 +9,12 @@ class Settings(BaseSettings):
 
     # LLM / model configuration
     LLM_API_KEY: str | None = None
-    MODEL_NAME: str = "llama-3-8b"
+    LLM_API_BASE: str | None = None
+    LLM_PROVIDER: str = "mock"  # mock | openai
+    MODEL_NAME: str = "gpt-4o-mini"
+
+    # Embedding configuration
+    EMBEDDING_MODEL: str | None = None  # e.g., "sentence-transformers/all-MiniLM-L6-v2"
 
     # RAG / vector index paths
     FAISS_INDEX_PATH: str = "data/faiss_index"
