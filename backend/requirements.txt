@@ -4,3 +4,8 @@ pydantic
 pydantic-settings
 httpx
 faiss-cpu
+scikit-learn
+sentence-transformers
+openai
+pytest
+pytest-cov
