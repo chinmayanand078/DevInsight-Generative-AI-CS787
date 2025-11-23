@@ -40,6 +40,45 @@ EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2  # optional semantic enco
 FAISS_INDEX_PATH=backend/app/rag/index
 ```
 
+### Enabling real ChatGPT responses (instead of deterministic mock)
+
+If you want the `/review` endpoint to stream real findings from ChatGPT (or any OpenAI-compatible endpoint):
+
+1. Obtain an API key and set it in `.env`:
+   ```bash
+   echo "LLM_PROVIDER=openai" >> .env
+   echo "LLM_API_KEY=<your_openai_key>" >> .env
+   echo "MODEL_NAME=gpt-4o-mini" >> .env   # adjust to gpt-4o or gpt-4o-mini per your quota
+   ```
+   If you are using a self-hosted/OpenAI-compatible gateway, also add `LLM_API_BASE=<your_base_url>`.
+
+2. (Optional) Enable semantic retrieval by choosing an embedding model and rebuilding the FAISS index:
+   ```bash
+   echo "EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2" >> .env
+   python -m backend.app.rag.index_builder
+   ```
+
+3. Restart the API so the new environment variables take effect:
+   ```bash
+   uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+   ```
+
+4. Send a review request. The response now merges heuristic findings with model-generated JSON findings from ChatGPT:
+   ```bash
+   curl -X POST http://localhost:8000/review \
+        -H "Content-Type: application/json" \
+        -d '{
+              "pr_title": "Demo PR",
+              "pr_number": 1,
+              "repo_name": "example/repo",
+              "diffs": [
+                {"filename": "sample.py", "old_code": "", "new_code": "def add(a,b):return a+b"}
+              ]
+            }'
+   ```
+
+If the API key is missing or invalid, the service automatically falls back to deterministic mock responses so CI runs remain stable.
+
 ## 5) Build (or rebuild) the FAISS index
 
 The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval.

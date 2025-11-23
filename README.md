@@ -42,6 +42,8 @@ DevInsight-Generative-AI-CS787/
 
 If you want exact commands and environment setup guidance, follow [docs/SETUP.md](docs/SETUP.md). It walks through creating a virtual environment, installing dependencies, building the FAISS index, running the API, and exercising each endpoint with sample `curl` payloads.
 
+To switch from deterministic mocks to real ChatGPT-powered findings, see the "Enabling real ChatGPT responses" section in [docs/SETUP.md](docs/SETUP.md) for the exact `.env` variables and restart steps.
+
 ## 🛣 Roadmap ideas
 
 - Swap the heuristic review/test generators for real model calls (e.g., OpenAI or self-hosted Llama 3) and feed embeddings from a true encoder.
