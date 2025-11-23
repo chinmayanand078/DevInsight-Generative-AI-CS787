@@ -1,85 +1,66 @@
 # 🚀 DevInsight AI — Automated Code Review & Documentation Intelligence
 
-DevInsight AI is an end-to-end automated **code intelligence system** that analyzes GitHub repositories and produces:
-- 🔍 Deep code reviews
-- 🧪 Auto-generated unit tests
-- 🧠 RAG-based Q&A on repository code
-- 🪪 Automatic GitHub Issues / PR comments
+DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipeline (code review + RAG-assisted context + unit-test suggestions). The current repository focuses on the backend skeleton described in the course project report and now ships with deterministic, locally runnable behaviors (no external keys required) **plus optional real-model integrations** if you provide credentials.
 
-Every time a commit is pushed, DevInsight AI inspects the changes and delivers actionable insights — making development faster, cleaner, and more reliable.
+## 🎯 What works today
 
----
+- REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
+- RAG scaffolding that indexes repository Markdown/Python/text/config docs (MD/MDX/RST/JSON/YAML/TOML/INI/CFG) **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings. Chunks store their source path plus snippet so LLM prompts stay grounded. Embeddings are deterministic hashing by default, or Sentence Transformers when configured and rebuilt with that encoder.
+- Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set. LLM results merge with lint feedback and are deduplicated by severity.
+- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional LLM-enriched tests and one-shot pytest+coverage execution. Coverage output now includes total percent, missing-line hints, and whether a goal (`smoke`/`basic`/`strong`/`max`) was met.
+- Metrics hooks that record basic timing/usage information in memory.
+- GitHub integration helpers: REST client plus an Actions-friendly runner (`backend/app/integrations/github_workflow.py`) that can post results back to a PR, with a ready-to-use workflow in `.github/workflows/devinsight.yml`.
+- A training starter script (`training/finetune_llama3.py`) showing how to fine-tune Llama 3 style models on custom review/test data.
 
-## ✨ Features
-| Capability | Description |
-|-----------|-------------|
-| 🔎 Code Review Engine | Detects code smells, bugs, anti-patterns & security flaws |
-| 📚 Documentation Assistant | Explains complex modules & missing documentation |
-| 🧪 Unit Test Generator | Creates missing test cases automatically |
-| 🧠 RAG + FAISS | Vector search over repository for contextual intelligence |
-| 🤖 GitHub CI Integration | Automatically runs on every push / PR |
-| 🔗 GitHub API Automation | Posts review output directly to GitHub Issues / PRs |
+## ⚠️ Known gaps (compared to the project vision)
 
----
+- Default mode stays deterministic; LLM-backed review/test suggestions require your own API key and model access.
+- Semantic retrieval needs a configured encoder (`EMBEDDING_MODEL`) and a rebuilt FAISS index; otherwise, retrieval remains hash-based and shallow.
+- Multi-agent orchestration (separate reviewer/critic/tester agents) from the report is not implemented—the backend runs a single-pass pipeline.
+- Claimed outcome metrics (e.g., “35% PR time reduction”, “30–40% coverage lift”) are not automatically measured or reported by the backend.
+- GitHub commenting is wired through `.github/workflows/devinsight.yml`; you must provide secrets (e.g., `OPENAI_API_KEY`, `EMBEDDING_MODEL` if you want semantic retrieval) for the workflow to post LLM-backed findings on pull requests.
 
-## 📁 Project Structure
-devinsight-ai/
-│── backend/
-│ ├── app.py # FastAPI application
-│ ├── review_engine/ # Code review engine
-│ ├── rag_engine/ # Retrieval augmented generation
-│ ├── faiss_index/ # Vector index for embeddings
-│ ├── test_generation/ # Unit test generator
-│ ├── github_api/ # API module to post to GitHub
-│── github-actions/
-│ ├── devinsight.yml # GitHub Actions workflow CI
-│── scripts/
-│ ├── build_index.py # Indexing script
-│── requirements.txt
-│── README.md
+For a concise checklist of what still remains and how to close each gap, see [docs/REMAINING_GAPS.md](docs/REMAINING_GAPS.md). For the current state of automated checks, optional coverage runs, and what is **not** measured, see [docs/TESTING_STATUS.md](docs/TESTING_STATUS.md).
 
----
+## 📁 Project structure (current repository)
 
-## ⚙️ Installation
+```
+DevInsight-Generative-AI-CS787/
+├─ README.md              # This file
+├─ backend/
+│  ├─ app/
+│  │  ├─ main.py          # FastAPI app with /health, /review, /generate-tests
+│  │  ├─ schemas.py       # Request/response models
+│  │  ├─ services/        # Review, test-gen, metrics, and RAG helpers
+│  │  ├─ rag/             # Index builder, chunking, FAISS wrapper
+│  │  ├─ llm/             # Mock LLM client and prompt helpers
+│  │  └─ static_analysis/ # Lightweight static analyzer
+│  ├─ requirements.txt    # Backend dependencies
+│  └─ uvicorn_run.sh      # Convenience script to launch the API
+├─ training/              # Optional fine-tuning scripts + requirements
+├─ CS787_report.pdf       # Project write-up (alternate filename: CS787_Report_Final.pdf)
+└─ ...
+```
 
-### 1️⃣ Clone the repository
-```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd devinsight-ai
-2️⃣ Install dependencies
-pip install -r requirements.txt
-3️⃣ Add environment variables
-Create a .env file:
-OPENAI_API_KEY=<your_key>
-GH_TOKEN=<github_personal_access_token>
-REPO_URL=<repo_to_analyze>
-PORT=8000
-▶️ Run locally
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
-Access API docs at:
-http://localhost:8000/docs
-🔄 GitHub Actions Integration
-A workflow file must be added to:
-.github/workflows/devinsight.yml
-This triggers DevInsight AI automatically on every push or pull request, generating reviews and posting them to GitHub.
-☁️ Deployment (Optional)
-Supported platforms: Render, Railway, AWS, Azure
-Expose this endpoint:
-POST /analyze
-🧠 Example Output
-🔍 Code Review Summary
-• 3 possible security flaws
-• 6 refactor suggestions
-• 2 unused variables
-• Missing documentation in 4 functions
+## 🧭 Getting started (step-by-step)
 
-🧪 Unit Tests Generated
-• tests/test_auth.py
-• tests/test_utils.py
-🛣 Roadmap
- Inline PR comments on exact lines
- Dashboard with repository trends
- Multi-repository analytics
-🤝 Contributing
-Contributions are welcome!
-For large changes, open an Issue first for discussion.
+If you want exact commands and environment setup guidance, follow [docs/SETUP.md](docs/SETUP.md). It walks through creating a virtual environment, installing dependencies, building the FAISS index, running the API, and exercising each endpoint with sample `curl` payloads.
+
+To switch from deterministic mocks to real ChatGPT-powered findings, see the "Enabling real ChatGPT responses" section in [docs/SETUP.md](docs/SETUP.md) for the exact `.env` variables and restart steps.
+
+## 🔌 GitHub PR automation (turnkey)
+
+- The repo ships with `.github/workflows/devinsight.yml`, which runs compile checks on pushes/PRs and, on pull requests, builds the FAISS index, runs the review pipeline, and posts a summary comment back to the PR.
+- Deterministic mode works with the default `GITHUB_TOKEN`; to enable LLM-backed findings, semantic retrieval, and LLM-enriched tests with coverage goals, add `OPENAI_API_KEY` and/or `EMBEDDING_MODEL` as repository secrets and rerun the workflow so the index is rebuilt with the chosen encoder.
+- `fetch-depth: 0` is already set so diffs can be computed against the base branch; the workflow helper also fetches the base ref/sha and falls back to local history if the remote is unavailable (e.g., some forked PRs).
+
+## 🛣 Roadmap ideas
+
+- Add optional self-hosted model runners with streaming responses and cost controls.
+- Support incremental/continuous indexing so large repos can refresh RAG without a full rebuild.
+- Emit inline PR comments from the workflow helper instead of a single summary, and add policy gates (block/approve) based on severity.
+- Enrich test generation with fixtures/parametrization plus mutation-fuzzing hooks for differential coverage.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an Issue to discuss any substantial change, especially if it touches the API contract or introduces new runtime dependencies.
