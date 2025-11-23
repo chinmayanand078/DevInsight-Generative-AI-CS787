@@ -22,7 +22,8 @@ async def main():
         chunks = chunk_text(content)
         for chunk in chunks:
             all_chunks.append(chunk)
-            metadatas.append(meta)
+            enriched = {**meta, "chunk": chunk}
+            metadatas.append(enriched)
 
     print(f"🔢 Total chunks: {len(all_chunks)}")
 

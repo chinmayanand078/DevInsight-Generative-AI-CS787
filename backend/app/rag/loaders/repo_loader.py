@@ -3,8 +3,34 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-ALLOWED_EXTENSIONS = {".md", ".py", ".txt"}
-EXCLUDE_DIRS = {".git", "__pycache__", "node_modules", "backend/app/rag/index"}
+ALLOWED_EXTENSIONS = {
+    ".md",
+    ".mdx",
+    ".rst",
+    ".py",
+    ".pyi",
+    ".txt",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+}
+EXCLUDE_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    "backend/app/rag/index",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+    ".mypy_cache",
+    ".pytest_cache",
+}
+MAX_BYTES = 400_000
+MIN_BYTES = 20
 
 
 def load_repo_text(base_path: str = ".") -> list[tuple[str, dict]]:
@@ -35,7 +61,7 @@ def load_repo_text(base_path: str = ".") -> list[tuple[str, dict]]:
             continue
 
         # Skip extremely small or large files that add little search value
-        if len(text) < 20 or len(text) > 200_000:
+        if len(text) < MIN_BYTES or len(text) > MAX_BYTES:
             continue
 
         rel_path = str(path.relative_to(base))

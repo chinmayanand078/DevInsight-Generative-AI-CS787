@@ -1,13 +1,21 @@
+import json
 from pathlib import Path
-from textwrap import indent
+from textwrap import dedent, indent
 
-from backend.app.schemas import TestGenRequest, TestGenResponse, GeneratedTest
+from backend.app.config import settings
+from backend.app.llm.client import LLMClient
+from backend.app.schemas import (
+    GeneratedTest,
+    TestGenRequest,
+    TestGenResponse,
+)
 from backend.app.static_analysis.analyzer import (
-    extract_function_signatures,
     detect_edge_cases,
     estimate_complexity,
+    extract_function_signatures,
 )
 from backend.app.testing.coverage_runner import (
+    build_coverage_report,
     run_pytest_with_coverage,
     summarize_coverage,
 )
@@ -68,9 +76,56 @@ def _build_test_file(module_path: str, signatures: list[dict], edge_cases: list[
     return "\n".join(lines).rstrip() + "\n"
 
 
+async def _llm_test_suggestions(code: str, analysis: dict) -> list[dict]:
+    if settings.LLM_PROVIDER == "mock" or not settings.LLM_API_KEY:
+        return []
+
+    prompt = dedent(
+        f"""
+        You are an expert Python test author. Given the module code and the static analysis
+        summary, propose targeted pytest test cases. Respond strictly as JSON with the
+        schema: {{"tests": [{{"name": "test_name", "code": "def test...", "description": "why this test"}}]}}.
+
+        Module code:\n{code}
+
+        Static analysis:
+        {json.dumps(analysis, indent=2)}
+        """
+    ).strip()
+
+    try:
+        client = LLMClient()
+        raw = await client.generate_tests(prompt)
+        parsed = json.loads(raw)
+        return parsed.get("tests", [])
+    except Exception:
+        return []
+
+
+def _append_llm_tests(base_code: str, llm_tests: list[dict]) -> str:
+    if not llm_tests:
+        return base_code
+
+    rendered: list[str] = [base_code.rstrip(), "", "# --- Model-suggested tests ---"]
+    for idx, test in enumerate(llm_tests, start=1):
+        description = test.get("description")
+        name = test.get("name") or f"model_suggested_test_{idx}"
+        code = test.get("code") or ""
+
+        if description:
+            rendered.append(f"# {description}")
+        if code.strip():
+            rendered.append(code.strip())
+        else:
+            rendered.append(f"def {name}():\n    assert True  # placeholder from model")
+        rendered.append("")
+
+    return "\n".join(rendered).rstrip() + "\n"
+
+
 async def generate_tests(request: TestGenRequest) -> TestGenResponse:
     """
-    Generate deterministic pytest files using static analysis (no external LLM).
+    Generate pytest files using static analysis with optional LLM enrichment and coverage runs.
     """
 
     code = request.code
@@ -85,15 +140,27 @@ async def generate_tests(request: TestGenRequest) -> TestGenResponse:
     test_file = f"tests/test_{Path(request.file_path).stem}.py"
     test_code = _build_test_file(module_path, analysis["signatures"], analysis["edge_cases"])
 
+    sources = ["static-analysis"]
+
+    llm_tests = await _llm_test_suggestions(code, analysis)
+    if llm_tests:
+        test_code = _append_llm_tests(test_code, llm_tests)
+        sources.append("llm")
+
     coverage_summary = None
+    coverage_report = None
     if request.coverage_goal:
         result = run_pytest_with_coverage(request.file_path, code, test_code)
-        coverage_summary = summarize_coverage(result)
+        coverage_report = build_coverage_report(result, goal=request.coverage_goal)
+        coverage_summary = summarize_coverage(result, report=coverage_report)
 
     test_obj = GeneratedTest(
         file_path=test_file,
         test_code=test_code,
         coverage_summary=coverage_summary,
+        coverage_report=coverage_report,
+        sources=sources,
+        model_used=settings.MODEL_NAME if "llm" in sources else None,
     )
 
     return TestGenResponse(tests=[test_obj])

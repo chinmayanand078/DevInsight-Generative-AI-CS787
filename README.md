@@ -5,9 +5,9 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 ## 🎯 What works today
 
 - REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
-- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings (deterministic hashing by default, Sentence Transformers if configured and the index is rebuilt with that encoder).
-- Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set.
-- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional one-shot pytest+coverage execution when you provide a `coverage_goal` in the request.
+- RAG scaffolding that indexes repository Markdown/Python/text/config docs (MD/MDX/RST/JSON/YAML/TOML/INI/CFG) **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings. Chunks store their source path plus snippet so LLM prompts stay grounded. Embeddings are deterministic hashing by default, or Sentence Transformers when configured and rebuilt with that encoder.
+- Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set. LLM results merge with lint feedback and are deduplicated by severity.
+- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional LLM-enriched tests and one-shot pytest+coverage execution. Coverage output now includes total percent, missing-line hints, and whether a goal (`smoke`/`basic`/`strong`/`max`) was met.
 - Metrics hooks that record basic timing/usage information in memory.
 - GitHub integration helpers: REST client plus an Actions-friendly runner (`backend/app/integrations/github_workflow.py`) that can post results back to a PR, with a ready-to-use workflow in `.github/workflows/devinsight.yml`.
 - A training starter script (`training/finetune_llama3.py`) showing how to fine-tune Llama 3 style models on custom review/test data.
@@ -47,15 +47,15 @@ To switch from deterministic mocks to real ChatGPT-powered findings, see the "En
 ## 🔌 GitHub PR automation (turnkey)
 
 - The repo ships with `.github/workflows/devinsight.yml`, which runs compile checks on pushes/PRs and, on pull requests, builds the FAISS index, runs the review pipeline, and posts a summary comment back to the PR.
-- Deterministic mode works with the default `GITHUB_TOKEN`; to enable LLM-backed findings or semantic retrieval, add `OPENAI_API_KEY` and/or `EMBEDDING_MODEL` as repository secrets and rerun the workflow so the index is rebuilt with the chosen encoder.
+- Deterministic mode works with the default `GITHUB_TOKEN`; to enable LLM-backed findings, semantic retrieval, and LLM-enriched tests with coverage goals, add `OPENAI_API_KEY` and/or `EMBEDDING_MODEL` as repository secrets and rerun the workflow so the index is rebuilt with the chosen encoder.
 - `fetch-depth: 0` is already set so diffs can be computed against the base branch; the workflow helper also fetches the base ref/sha and falls back to local history if the remote is unavailable (e.g., some forked PRs).
 
 ## 🛣 Roadmap ideas
 
-- Swap the heuristic review/test generators for real model calls (e.g., OpenAI or self-hosted Llama 3) and feed embeddings from a true encoder.
-- Expand RAG ingestion to include Git history and design docs beyond text/Markdown/Python.
-- Add a GitHub bot step that posts review/test suggestions directly on PRs using the existing workflow skeleton.
-- Implement real coverage measurement and richer test generation (fixtures, parametrization, mutation checks).
+- Add optional self-hosted model runners with streaming responses and cost controls.
+- Support incremental/continuous indexing so large repos can refresh RAG without a full rebuild.
+- Emit inline PR comments from the workflow helper instead of a single summary, and add policy gates (block/approve) based on severity.
+- Enrich test generation with fixtures/parametrization plus mutation-fuzzing hooks for differential coverage.
 
 ## 🤝 Contributing
 

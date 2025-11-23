@@ -131,3 +131,45 @@ class LLMClient:
         sparse_vectors = self._vectorizer.transform(texts)
         return sparse_vectors.toarray().astype("float32")
 
+    async def generate_tests(self, prompt: str) -> str:
+        """Return model-suggested tests as JSON; falls back to deterministic stub."""
+
+        if settings.LLM_PROVIDER == "openai" and settings.LLM_API_KEY:
+            try:
+                from openai import AsyncOpenAI
+
+                client = AsyncOpenAI(api_key=settings.LLM_API_KEY, base_url=settings.LLM_API_BASE)
+                response = await client.chat.completions.create(
+                    model=settings.MODEL_NAME,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You produce ONLY JSON test suggestions following the schema "
+                                '{"tests": [{"name": "str", "code": "str", "description": "str"}]}'
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.2,
+                )
+                content = response.choices[0].message.content or ""
+
+                json.loads(content)
+                return content
+            except Exception:
+                pass
+
+        return json.dumps(
+            {
+                "tests": [
+                    {
+                        "name": "model_suggested_test",
+                        "description": "Deterministic placeholder test from mock LLM.",
+                        "code": "def test_placeholder_from_model():\n    assert True",
+                    }
+                ]
+            },
+            indent=2,
+        )
+

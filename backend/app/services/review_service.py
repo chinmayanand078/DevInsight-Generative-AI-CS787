@@ -23,6 +23,7 @@ def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
                     line=idx,
                     severity="info",
                     message="TODO left in code; either address or convert to tracked issue.",
+                    source="lint",
                 )
             )
 
@@ -33,6 +34,7 @@ def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
                     line=idx,
                     severity="warning",
                     message="Replace print with structured logging for observability.",
+                    source="lint",
                 )
             )
 
@@ -43,6 +45,7 @@ def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
                     line=idx,
                     severity="critical",
                     message="Bare except found; catch specific exception types to avoid masking errors.",
+                    source="lint",
                 )
             )
 
@@ -53,6 +56,7 @@ def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
                     line=idx,
                     severity="critical",
                     message="Use of eval is unsafe; prefer explicit parsing or whitelisted operations.",
+                    source="lint",
                 )
             )
 
@@ -63,6 +67,7 @@ def _lint_lines(filename: str, new_code: str) -> list[ReviewComment]:
                     line=idx,
                     severity="warning",
                     message="Potential secret in code; ensure credentials are loaded from environment or vault.",
+                    source="lint",
                 )
             )
     return comments
@@ -84,6 +89,7 @@ def _lint_ast(filename: str, new_code: str) -> list[ReviewComment]:
                         line=node.lineno,
                         severity="info",
                         message=f"Function '{node.name}' is missing a docstring.",
+                        source="lint",
                     )
                 )
 
@@ -95,9 +101,41 @@ def _lint_ast(filename: str, new_code: str) -> list[ReviewComment]:
                         line=node.lineno,
                         severity="warning",
                         message=f"Function '{node.name}' has high branch count ({complexity}); consider refactoring.",
+                        source="lint",
                     )
                 )
     return comments
+
+
+def _dedupe_comments(comments: list[ReviewComment]) -> list[ReviewComment]:
+    """Prefer highest-severity comment when duplicates appear on the same line."""
+
+    severity_rank = {"critical": 3, "warning": 2, "info": 1}
+    merged: dict[tuple[str, int, str], ReviewComment] = {}
+
+    for comment in comments:
+        key = (comment.filename, comment.line, comment.message.strip())
+        existing = merged.get(key)
+        if existing:
+            current_score = severity_rank.get(comment.severity, 0)
+            prev_score = severity_rank.get(existing.severity, 0)
+            if current_score > prev_score:
+                merged[key] = comment
+        else:
+            merged[key] = comment
+
+    return list(merged.values())
+
+
+def _format_rag_context(chunks: list[dict]) -> str:
+    rendered = []
+    for chunk in chunks or []:
+        src = chunk.get("source", "repo")
+        text = chunk.get("chunk") or chunk.get("text") or ""
+        if not text:
+            continue
+        rendered.append(f"[{src}] {text}")
+    return "\n".join(rendered)
 
 
 async def run_review(request: ReviewRequest) -> ReviewResponse:
@@ -112,6 +150,7 @@ async def run_review(request: ReviewRequest) -> ReviewResponse:
 
     # 🔍 Step 1 — retrieve relevant repo context
     rag_context = await get_context_for_review(diff_text)
+    rag_context_text = _format_rag_context(rag_context)
 
     # 🔍 Step 2 — heuristic lint pass (deterministic, no external LLM)
     comments: list[ReviewComment] = []
@@ -123,12 +162,18 @@ async def run_review(request: ReviewRequest) -> ReviewResponse:
     # 🤖 Step 3 — optional LLM suggestions (structured JSON)
     if settings.LLM_PROVIDER != "mock" and settings.LLM_API_KEY:
         llm = LLMClient()
+        lint_summary = "\n".join(
+            f"- {c.filename}:{c.line} [{c.severity}] {c.message}" for c in comments
+        ) or "(none)"
         prompt = dedent(
             f"""
-            Given the following PR diffs, produce JSON findings with filename, line, severity, and message.
-            Use the RAG snippets for context if helpful.
+            You are a senior code reviewer. Given the PR diffs, existing lint findings, and
+            repository context snippets, return ONLY JSON of the form:
+            {{"findings": [{{"filename": str, "line": int, "severity": str, "message": str}}]}}.
 
-            DIFFS:\n{diff_text}\n\nRAG CONTEXT:{rag_context}
+            DIFFS:\n{diff_text}\n
+            EXISTING LINT FINDINGS:\n{lint_summary}\n
+            RAG CONTEXT SNIPPETS:\n{rag_context_text}
             """
         ).strip()
 
@@ -142,11 +187,15 @@ async def run_review(request: ReviewRequest) -> ReviewResponse:
                         line=int(finding.get("line", 1)),
                         severity=finding.get("severity", "info"),
                         message=finding.get("message", "LLM suggestion"),
+                        source="llm",
+                        model=settings.MODEL_NAME,
                     )
                 )
         except Exception:
             # Keep lint-only output if LLM parsing fails
             pass
+
+    comments = _dedupe_comments(comments)
 
     # 📊 Step 5 — metrics logging
     duration = time.time() - start_time

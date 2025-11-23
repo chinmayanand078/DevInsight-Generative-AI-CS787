@@ -81,7 +81,7 @@ If the API key is missing or invalid, the service automatically falls back to de
 
 ## 5) Build (or rebuild) the FAISS index
 
-The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval. The FAISS metadata now records which embedder built the index; switching models without rebuilding the index will raise a clear error telling you to rebuild.
+The RAG pipeline indexes repository Markdown/Python/text/config docs (MD/MDX/RST/JSON/YAML/TOML/INI/CFG) **plus the last ~25 commits** (skipping binaries/huge artifacts). Each chunk stores its source path and text so prompts can cite real snippets. Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval. The FAISS metadata now records which embedder built the index; switching models without rebuilding the index will raise a clear error telling you to rebuild.
 
 ```bash
 python -m backend.app.rag.index_builder
@@ -143,6 +143,9 @@ With the server running on port 8000:
   ```
 
 Responses come from deterministic heuristics (no external API keys required). If you pass `coverage_goal`, the service writes the code/tests to a temp dir and runs `pytest --cov`, returning the stdout/stderr summary alongside the generated test file. If `LLM_PROVIDER` is set to `openai` with a valid key, the review endpoint will also surface structured suggestions from the configured model.
+
+- Coverage goals are parsed as shorthand thresholds: `smoke` (25%), `basic` (50%), `strong` (80%), `max` (95%). The response now includes a structured `coverage_report` showing total percent, missing lines, and whether the goal was met.
+- If you provide `LLM_PROVIDER=openai` + `LLM_API_KEY`, the test generator will append model-suggested pytest cases to the deterministic scaffold and record `sources=["static-analysis", "llm"]` in the response.
 
 ## 8) Optional next steps
 

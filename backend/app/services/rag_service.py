@@ -20,7 +20,11 @@ async def get_context_for_review(diff_text: str, k: int = 5):
 
     # Use the diff text directly as query
     query_embedding = await llm.embed([diff_text])
-    results = store.search(query_embedding, k=k, embedder=llm.embedder_id)
+    try:
+        results = store.search(query_embedding, k=k, embedder=llm.embedder_id)
+    except ValueError:
+        # Embedding mismatch; ask users to rebuild index, but keep service alive
+        return []
 
     return results
 
