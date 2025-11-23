@@ -32,7 +32,7 @@ async def main():
 
     print("💾 Building FAISS vector index...")
     store = VectorStore()
-    store.build_index(embeddings, metadatas)
+    store.build_index(embeddings, metadatas, embedder=llm.embedder_id)
     store.save(INDEX_DIR)
 
     print(f"✅ Index saved to: {INDEX_DIR}")

@@ -36,7 +36,7 @@ LLM_PROVIDER=openai            # or leave unset for mock
 LLM_API_KEY=<your-key-if-using-a-real-LLM>
 LLM_API_BASE=https://api.openai.com/v1  # optional override
 MODEL_NAME=gpt-4o-mini         # any chat/completions-capable model
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2  # optional semantic encoder
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2  # enables semantic retrieval (set before building the index)
 FAISS_INDEX_PATH=backend/app/rag/index
 ```
 
@@ -52,7 +52,7 @@ If you want the `/review` endpoint to stream real findings from ChatGPT (or any 
    ```
    If you are using a self-hosted/OpenAI-compatible gateway, also add `LLM_API_BASE=<your_base_url>`.
 
-2. (Optional) Enable semantic retrieval by choosing an embedding model and rebuilding the FAISS index:
+2. (Optional, recommended) Enable semantic retrieval by choosing an embedding model and rebuilding the FAISS index:
    ```bash
    echo "EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2" >> .env
    python -m backend.app.rag.index_builder
@@ -81,7 +81,7 @@ If the API key is missing or invalid, the service automatically falls back to de
 
 ## 5) Build (or rebuild) the FAISS index
 
-The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval.
+The RAG pipeline indexes repository Markdown/Python/text files **plus the last ~25 commits** (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors with bigrams by default. If you set `EMBEDDING_MODEL`, a sentence-transformer encoder will be used instead for semantic retrieval. The FAISS metadata now records which embedder built the index; switching models without rebuilding the index will raise a clear error telling you to rebuild.
 
 ```bash
 python -m backend.app.rag.index_builder

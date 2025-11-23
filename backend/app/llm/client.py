@@ -31,6 +31,15 @@ class LLMClient:
         self._st_model = None
 
     @property
+    def embedder_id(self) -> str:
+        """Human-readable identifier for the active embedding strategy."""
+
+        if self._use_semantic_embeddings:
+            model_name = settings.EMBEDDING_MODEL or "sentence-transformers/all-MiniLM-L6-v2"
+            return f"sentence-transformers:{model_name}"
+        return "hashing:sklearn-2048-ngram12"
+
+    @property
     def _use_semantic_embeddings(self) -> bool:
         return settings.EMBEDDING_MODEL is not None
 
@@ -40,8 +49,11 @@ class LLMClient:
 
         try:
             from sentence_transformers import SentenceTransformer
-        except ImportError:
-            return None
+        except ImportError as exc:
+            raise RuntimeError(
+                "sentence-transformers is required for semantic embeddings. "
+                "Install it (pip install sentence-transformers) or unset EMBEDDING_MODEL"
+            ) from exc
 
         model_name = settings.EMBEDDING_MODEL or "sentence-transformers/all-MiniLM-L6-v2"
         self._st_model = SentenceTransformer(model_name)
@@ -113,9 +125,8 @@ class LLMClient:
 
         if self._use_semantic_embeddings:
             model = self._get_sentence_transformer()
-            if model:
-                vectors = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
-                return vectors.astype("float32")
+            vectors = model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
+            return vectors.astype("float32")
 
         sparse_vectors = self._vectorizer.transform(texts)
         return sparse_vectors.toarray().astype("float32")

@@ -5,7 +5,7 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 ## 🎯 What works today
 
 - REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
-- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings (deterministic hashing by default, Sentence Transformers if configured).
+- RAG scaffolding that indexes repository Markdown/Python/text files **and recent Git history** into a FAISS store (skips binaries and oversized files) with pluggable embeddings (deterministic hashing by default, Sentence Transformers if configured and the index is rebuilt with that encoder).
 - Deterministic, heuristic code review with an **optional OpenAI-backed path** for structured findings when `LLM_PROVIDER=openai` and a key are set.
 - Deterministic pytest generation based on static analysis that stubs importable tests for each detected function, with optional one-shot pytest+coverage execution when you provide a `coverage_goal` in the request.
 - Metrics hooks that record basic timing/usage information in memory.
@@ -15,7 +15,7 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 ## ⚠️ Known gaps (compared to the project vision)
 
 - Default mode stays deterministic; LLM-backed review requires your own API key and model access.
-- Semantic retrieval requires downloading an encoder (Sentence Transformers); set `EMBEDDING_MODEL` to enable.
+- Semantic retrieval requires downloading an encoder (Sentence Transformers); set `EMBEDDING_MODEL`, rebuild the FAISS index, and the runtime will enforce that the query embedder matches the stored index embedder.
 - GitHub commenting is available via `backend.app.integrations.github_workflow` but still needs to be invoked from your CI workflow.
 
 ## 📁 Project structure (current repository)
