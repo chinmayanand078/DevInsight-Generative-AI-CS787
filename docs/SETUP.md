@@ -39,7 +39,7 @@ FAISS_INDEX_PATH=backend/app/rag/index
 
 ## 5) Build (or rebuild) the FAISS index
 
-The RAG pipeline indexes `README.md` and any `docs/*.md` files. Embeddings are deterministic hash-based vectors (no external model required), so rebuilding is fast and repeatable.
+The RAG pipeline indexes repository Markdown/Python/text files (skipping binaries/huge artifacts). Embeddings are deterministic hash-based vectors (no external model required), so rebuilding is fast and repeatable.
 
 ```bash
 python -m backend.app.rag.index_builder
@@ -73,7 +73,7 @@ With the server running on port 8000:
   curl http://localhost:8000/health
   ```
 
-- PR review (returns mock findings but exercises RAG + parsing)
+- PR review (runs deterministic lint + RAG)
 
   ```bash
   curl -X POST http://localhost:8000/review \
@@ -88,7 +88,7 @@ With the server running on port 8000:
            }'
   ```
 
-- Unit-test generation (stubbed output)
+- Unit-test generation (deterministic scaffold output)
 
   ```bash
   curl -X POST http://localhost:8000/generate-tests \
@@ -100,7 +100,7 @@ With the server running on port 8000:
            }'
   ```
 
-Responses come from the mock `LLMClient`, so they are deterministic and require no API keys.
+Responses come from deterministic heuristics (no external API keys required).
 
 ## 8) Optional next steps
 

@@ -1,20 +1,21 @@
 # 🚀 DevInsight AI — Automated Code Review & Documentation Intelligence
 
-DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipeline (code review + RAG-assisted context + unit-test suggestions). The current repository focuses on the backend skeleton described in the course project report.
+DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipeline (code review + RAG-assisted context + unit-test suggestions). The current repository focuses on the backend skeleton described in the course project report and now ships with deterministic, locally runnable behaviors (no external keys required).
 
 ## 🎯 What works today
 
 - REST API with `/health`, `/review`, and `/generate-tests` endpoints implemented in FastAPI.
-- RAG scaffolding that indexes `README.md` and any `docs/*.md` files into a FAISS store.
-- Mocked LLM client that returns deterministic review text and deterministic hash-based embeddings so the pipeline runs end-to-end without external keys.
+- RAG scaffolding that indexes repository Markdown/Python/text files into a FAISS store (skips binaries and oversized files).
+- Deterministic, heuristic code review (no LLM dependency) that flags bare `except`, stray `print`, missing docstrings, TODOs, and other quick wins.
+- Deterministic pytest generation based on static analysis that stubs importable tests for each detected function.
 - Metrics hooks that record basic timing/usage information in memory.
 
 ## ⚠️ Known gaps (compared to the project vision)
 
-- No real LLM calls: `LLMClient` returns mock reviews and hash-based TF embeddings; swap in a proper encoder for semantic similarity.
-- RAG indexing only reads `README.md` and `docs/*.md`; it does **not** ingest Git history or arbitrary design documents.
-- GitHub integration is not wired: there is no `.github/workflows/` pipeline or GitHub API client in this repository.
-- Unit-test generation is stubbed; coverage is not measured and generated tests come from mocked LLM output.
+- No real LLM calls: review and test generation are deterministic heuristics; swap in a proper encoder or model when available.
+- RAG indexing still skips Git history and large/binary artifacts; extend the loader if you need those sources.
+- GitHub integration does not yet post comments; however, a workflow (`.github/workflows/devinsight.yml`) now runs backend checks on pushes/PRs.
+- Coverage is not measured yet; generated tests are scaffolds and may need parameter tuning for your code.
 
 ## 📁 Project structure (current repository)
 
@@ -41,10 +42,10 @@ If you want exact commands and environment setup guidance, follow [docs/SETUP.md
 
 ## 🛣 Roadmap ideas
 
-- Swap the mock `LLMClient` for a real model call (e.g., OpenAI or self-hosted Llama 3) and feed embeddings from a true encoder.
-- Expand RAG ingestion to include Git history, code files, and design docs.
-- Add a `.github/workflows/devinsight.yml` workflow plus GitHub API calls to post review results as PR comments.
-- Implement real coverage measurement and richer test generation beyond the current stub.
+- Swap the heuristic review/test generators for real model calls (e.g., OpenAI or self-hosted Llama 3) and feed embeddings from a true encoder.
+- Expand RAG ingestion to include Git history and design docs beyond text/Markdown/Python.
+- Add a GitHub bot step that posts review/test suggestions directly on PRs using the existing workflow skeleton.
+- Implement real coverage measurement and richer test generation (fixtures, parametrization, mutation checks).
 
 ## 🤝 Contributing
 
