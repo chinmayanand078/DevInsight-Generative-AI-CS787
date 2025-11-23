@@ -14,9 +14,13 @@ DevInsight AI is a FastAPI backend that demonstrates a code-intelligence pipelin
 
 ## ⚠️ Known gaps (compared to the project vision)
 
-- Default mode stays deterministic; LLM-backed review requires your own API key and model access.
-- Semantic retrieval requires downloading an encoder (Sentence Transformers); set `EMBEDDING_MODEL`, rebuild the FAISS index, and the runtime will enforce that the query embedder matches the stored index embedder.
-- GitHub commenting is wired through `.github/workflows/devinsight.yml`; set your secrets (e.g., `OPENAI_API_KEY`, `EMBEDDING_MODEL` if you want semantic retrieval) and the workflow will post a summary comment on pull requests.
+- Default mode stays deterministic; LLM-backed review/test suggestions require your own API key and model access.
+- Semantic retrieval needs a configured encoder (`EMBEDDING_MODEL`) and a rebuilt FAISS index; otherwise, retrieval remains hash-based and shallow.
+- Multi-agent orchestration (separate reviewer/critic/tester agents) from the report is not implemented—the backend runs a single-pass pipeline.
+- Claimed outcome metrics (e.g., “35% PR time reduction”, “30–40% coverage lift”) are not automatically measured or reported by the backend.
+- GitHub commenting is wired through `.github/workflows/devinsight.yml`; you must provide secrets (e.g., `OPENAI_API_KEY`, `EMBEDDING_MODEL` if you want semantic retrieval) for the workflow to post LLM-backed findings on pull requests.
+
+For a concise checklist of what still remains and how to close each gap, see [docs/REMAINING_GAPS.md](docs/REMAINING_GAPS.md).
 
 ## 📁 Project structure (current repository)
 
